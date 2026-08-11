@@ -15,7 +15,7 @@ const STATUS_META = {
 };
 
 const UPTIME_RANGES = ["24h", "7d", "30d", "90d"];
-const UPTIME_BUCKETS = { "24h": 24, "7d": 7, "30d": 30, "90d": 90 };
+const GAUGE_DEFAULT = "24h";
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -25,7 +25,7 @@ const esc = (str) =>
   }[c]));
 
 const pctColor = (pct) =>
-  pct >= 99.9 ? "fill" : pct >= 99.5 ? "fill-warn" : "fill-bad";
+  pct >= 99 ? "fill" : pct >= 95 ? "fill-warn" : "fill-bad";
 
 const formatPct = (pct) => {
   const n = Number(pct);
@@ -46,10 +46,9 @@ const formatDuration = (sec) => {
 const formatIncidentDate = (iso) => {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString(undefined, {
-    month: "short", day: "numeric", year: "numeric",
-    hour: "numeric", minute: "2-digit"
-  });
+  const date = d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return date.toUpperCase() + " · " + time;
 };
 
 const formatUpdated = (iso) => {
@@ -99,69 +98,145 @@ function renderServices(services) {
   $("#services-count").textContent = (services.length || 0) + " services";
 }
 
-// Human-readable label for a single history block, e.g. "Aug 11, 3 PM — Operational".
-const STATE_LABEL = { up: "Operational", down: "Down", paused: "Paused" };
-function blockLabel(range, idxFromEnd, lastUpdatedIso, state) {
-  const status = STATE_LABEL[state] || "No data";
-  if (!lastUpdatedIso) return status;
-  const ms = new Date(lastUpdatedIso).getTime();
-  if (Number.isNaN(ms)) return status;
-  const stepMs = range === "24h" ? 3600000 : 86400000;
-  const d = new Date(ms - idxFromEnd * stepMs);
-  const when = range === "24h"
-    ? d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric" })
-    : d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-  return `${when} — ${status}`;
-}
+// ──────────────────────────────────────────────
+// UPTIME GAUGE
+// One 180-degree technical gauge per service. Reads the real per-range
+// uptime values from service.uptime[range] — nothing is hardcoded.
+// ──────────────────────────────────────────────
+const GAUGE_CX = 100, GAUGE_CY = 100, GAUGE_R = 80;
 
-// Renders the real per-interval timeline from service.history[range]:
-//   "up"    -> green
-//   "down"  -> red
-//   "paused"-> muted amber
-//   null    -> muted gray (no positive monitoring proof for that interval)
-// The Worker always returns exactly UPTIME_BUCKETS[range] values, and this
-// always renders exactly that many blocks — never more, never fewer.
-function uptimeColHtml(range, svc, lastUpdatedIso) {
+const gaugeValue = (svc, range) => {
   const raw = svc.uptime ? svc.uptime[range] : null;
   const pct = raw != null ? Number(raw) : null;
-  const valid = pct != null && Number.isFinite(pct);
-  const value = valid ? formatPct(pct) + "%" : "—";
-  const cls = valid ? " is-" + pctColor(pct) : "";
-  const count = UPTIME_BUCKETS[range] || 10;
-  const history = svc.history && Array.isArray(svc.history[range]) ? svc.history[range] : [];
-  const label = `${range} uptime ${valid ? formatPct(pct) + "%" : "unknown"}`;
-  const blocks = [];
-  for (let i = 0; i < count; i++) {
-    const state = history[i];
-    const fill =
-      state === "down" ? " is-fill-bad"
-      : state === "up" ? " is-fill"
-      : state === "paused" ? " is-paused"
-      : "";
-    const title = esc(blockLabel(range, count - 1 - i, lastUpdatedIso, state));
-    blocks.push(`<span class="ub${fill}" title="${title}" aria-hidden="true"></span>`);
-  }
+  return pct != null && Number.isFinite(pct) ? pct : null;
+};
+
+// Fixed 180-degree semicircle (0% = left, through the top, 100% = right).
+// Rendered as one full path; the green/red split is drawn with stroke-dasharray
+// (pathLength="100"), which is immune to the arc-flag fragility that near-100%
+// end-to-end paths hit. Dash starts at the left (0%) end.
+const GAUGE_ARC = "M20,100 A80,80 0 0 0 180,100";
+
+const gaugePoint = (v, r) => {
+  const th = ((180 - v * 1.8) * Math.PI) / 180;
+  return [GAUGE_CX + r * Math.cos(th), GAUGE_CY - r * Math.sin(th)];
+};
+
+const GAUGE_MINOR = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+const GAUGE_MAJOR = [0, 25, 50, 75, 100];
+
+const gaugeTicksHtml = () => {
+  const minor = GAUGE_MINOR.map((v) => {
+    const [x1, y1] = gaugePoint(v, 74);
+    const [x2, y2] = gaugePoint(v, 80);
+    return `<line class="tick is-minor" x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}"/>`;
+  }).join("");
+  const major = GAUGE_MAJOR.map((v) => {
+    const [x1, y1] = gaugePoint(v, 66);
+    const [x2, y2] = gaugePoint(v, 80);
+    return `<line class="tick is-major" x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}"/>`;
+  }).join("");
+  const labels = GAUGE_MAJOR.map((v) => {
+    const [x, y] = gaugePoint(v, 57);
+    return `<text class="tick-label" x="${x.toFixed(2)}" y="${(y + 3).toFixed(2)}">${v}</text>`;
+  }).join("");
+  return minor + major + labels;
+};
+
+const gaugeNeedleDeg = (pct) => (pct != null ? (pct - 50) * 1.8 : -90);
+
+const gaugeClamp = (v) => {
+  if (v == null || !Number.isFinite(v)) return 0;
+  return Math.min(Math.max(v, 0), 100);
+};
+
+function gaugeSvgHtml(svc, range, pct, value) {
+  const frac = gaugeClamp(pct);
   return `
-    <div class="uptime-col">
-      <span class="uptime-range">${esc(range)}</span>
-      <span class="uptime-value${cls}">${value}</span>
-      <span class="ub-row" style="--n:${count}" role="img" aria-label="${label}">${blocks.join("")}</span>
-      ${range === "24h" ? '<span class="ub-now">now</span>' : ""}
+    <svg class="gauge" viewBox="0 0 200 118" role="img" aria-label="${esc(svc.name)} ${esc(range)} uptime ${esc(value)}">
+      <path class="gauge-track" d="${GAUGE_ARC}"/>
+      <path class="gauge-arc gauge-arc-red" d="${GAUGE_ARC}" pathLength="100" stroke-dasharray="100 100"/>
+      <path class="gauge-arc gauge-arc-green" d="${GAUGE_ARC}" pathLength="100" stroke-dasharray="${frac} 100"/>
+      <g class="gauge-ticks">${gaugeTicksHtml()}</g>
+      <g class="gauge-needle">
+        <line class="g-needle" x1="100" y1="100" x2="100" y2="24" style="transform:rotate(${gaugeNeedleDeg(pct)}deg)"/>
+      </g>
+      <circle class="gauge-hub" cx="100" cy="100" r="5"/>
+    </svg>`;
+}
+
+function gaugePanelHtml(svc) {
+  const meta = STATUS_META[svc.status] || STATUS_META.unknown;
+  const svcCls = "is-" + esc(svc.status || "unknown");
+  const pct = gaugeValue(svc, GAUGE_DEFAULT);
+  const value = pct != null ? formatPct(pct) + "%" : "—";
+  const cls = pct != null ? " is-" + pctColor(pct) : "";
+  const valAttr = (r) => {
+    const p = gaugeValue(svc, r);
+    return p == null ? "" : String(p);
+  };
+  const rangeBtns = UPTIME_RANGES.map((r) => {
+    const p = gaugeValue(svc, r);
+    const active = r === GAUGE_DEFAULT;
+    return `
+      <button type="button" class="g-range${active ? " is-active" : ""}" data-range="${esc(r)}" aria-pressed="${active ? "true" : "false"}">
+        <span class="gr-period">${esc(r)}</span>
+        <span class="gr-val${p != null ? " is-" + pctColor(p) : ""}">${p != null ? formatPct(p) + "%" : "—"}</span>
+      </button>`;
+  }).join("");
+  return `
+    <div class="gauge-panel">
+      <div class="gauge-head">
+        <span class="gauge-svc-dot ${svcCls}" aria-hidden="true"></span>
+        <div class="gauge-svc">
+          <h3>${esc(svc.name)}</h3>
+          <p>${esc(svc.url || svc.description || "")}</p>
+        </div>
+        <span class="gauge-svc-status ${svcCls}">${esc(meta.label)}</span>
+      </div>
+      <div class="gauge-wrap${cls}" data-v24h="${valAttr("24h")}" data-v7d="${valAttr("7d")}" data-v30d="${valAttr("30d")}" data-v90d="${valAttr("90d")}">
+        ${gaugeSvgHtml(svc, GAUGE_DEFAULT, pct, value)}
+        <div class="gauge-readout">
+          <span class="gauge-pct">${value}</span>
+          <span class="gauge-cap">Uptime</span>
+        </div>
+      </div>
+      <div class="gauge-ranges">${rangeBtns}</div>
     </div>`;
 }
 
-function renderUptime(services, lastUpdatedIso) {
+function renderUptime(services) {
   const wrap = $("#uptime-list");
   if (!services || services.length === 0) {
     wrap.innerHTML = '<div class="empty">No uptime data available.</div>';
     return;
   }
-  wrap.innerHTML = `<div class="uptime">${services.map((svc) => `
-    <div class="uptime-service">
-      <h3 class="uptime-name">${esc(svc.name)}</h3>
-      <div class="uptime-cols">${UPTIME_RANGES.map((range) => uptimeColHtml(range, svc, lastUpdatedIso)).join("")}</div>
-    </div>`).join("")}</div>`;
+  wrap.innerHTML = `<div class="uptime">${services.map(gaugePanelHtml).join("")}</div>`;
 }
+
+// Period selector: swap the gauge needle/readout from the values already in
+// the DOM. No re-fetch, no page reload.
+$("#uptime-list").addEventListener("click", (e) => {
+  const btn = e.target.closest(".g-range");
+  if (!btn) return;
+  const panel = btn.closest(".gauge-panel");
+  if (!panel) return;
+  const wrap = panel.querySelector(".gauge-wrap");
+  const range = btn.dataset.range;
+  panel.querySelectorAll(".g-range").forEach((b) => {
+    b.classList.toggle("is-active", b === btn);
+    b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+  });
+  const raw = wrap.dataset["v" + range];
+  const pct = raw == null || raw === "" ? null : Number(raw);
+  const valid = pct != null && Number.isFinite(pct);
+  const value = valid ? formatPct(pct) + "%" : "—";
+  wrap.classList.remove("is-fill", "is-fill-warn", "is-fill-bad");
+  if (valid) wrap.classList.add("is-" + pctColor(pct));
+  wrap.querySelector(".gauge-pct").textContent = value;
+  wrap.querySelector(".gauge-arc-green").setAttribute("stroke-dasharray", gaugeClamp(pct) + " 100");
+  wrap.querySelector(".g-needle").style.transform = "rotate(" + gaugeNeedleDeg(pct) + "deg)";
+});
 
 function incidentCard(inc) {
   const ongoing = inc.status === "ongoing";
@@ -221,7 +296,7 @@ function renderMaintenance(maintenance) {
     return;
   }
   wrap.innerHTML = maintenance.map((m) => `
-    <div class="incident">
+    <div class="incident is-${esc(m.status || "identified")}">
       <div class="incident-head">
         <h4>${esc(m.title)}</h4>
         <span class="incident-status is-${esc(m.status || "identified")}">${esc(m.status === "resolved" ? "Completed" : "Scheduled")}</span>
@@ -238,7 +313,7 @@ function renderMaintenance(maintenance) {
 function renderAll(data) {
   renderOverallStatus(data.overall || {});
   renderServices(data.services || []);
-  renderUptime(data.services || [], data.lastUpdated);
+  renderUptime(data.services || []);
   renderIncidents(data.incidents || []);
   renderMaintenance(data.maintenance || []);
 }

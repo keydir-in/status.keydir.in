@@ -56,10 +56,9 @@ referenced from the keydir.in repo — the status site deploys standalone.
   - `loadStatus()` — `fetch()`es the Worker endpoint, then dispatches to the render functions. Runs on load and every 30 s (retries after 5 s on failure).
   - `renderOverallStatus()` — big status card (`data.overall.status` + `data.overall.message`).
   - `renderServices()` — one row per service returned by the API (name, status, indicator, URL).
-  - `renderUptime()` — per-service panel with 24h / 7d / 30d / 90d uptime percentages + block
-    telemetry rendered from `service.history` (always exactly 24 / 7 / 30 / 90 blocks; `null`
-    intervals render as muted gray "history unavailable" blocks, percentages from `service.uptime`,
-    null values render as `—`).
+  - `renderUptime()` — per-service panel with a 180-degree uptime gauge reading `service.uptime`;
+    the 24h / 7d / 30d / 90d tabs swap the needle/readout client-side from the values already in the
+    DOM (no refetch). Unknown values render as `—`.
   - `renderIncidents()` — incident history from `incidents[]`, newest first ("✓ NO INCIDENTS REPORTED."
     if the API sends none; ongoing outages show a live duration computed client-side).
   - `renderMaintenance()` — scheduled maintenance list (renders "No scheduled maintenance." if empty).
