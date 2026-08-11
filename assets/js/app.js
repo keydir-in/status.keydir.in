@@ -103,7 +103,7 @@ function renderServices(services) {
 // One 180-degree technical gauge per service. Reads the real per-range
 // uptime values from service.uptime[range] — nothing is hardcoded.
 // ──────────────────────────────────────────────
-const GAUGE_CX = 100, GAUGE_CY = 100, GAUGE_R = 80;
+const GAUGE_CX = 150, GAUGE_CY = 150, GAUGE_R = 110;
 
 const gaugeValue = (svc, range) => {
   const raw = svc.uptime ? svc.uptime[range] : null;
@@ -111,11 +111,11 @@ const gaugeValue = (svc, range) => {
   return pct != null && Number.isFinite(pct) ? pct : null;
 };
 
-// Fixed 180-degree semicircle (0% = left, through the top, 100% = right).
-// Rendered as one full path; the green/red split is drawn with stroke-dasharray
-// (pathLength="100"), which is immune to the arc-flag fragility that near-100%
-// end-to-end paths hit. Dash starts at the left (0%) end.
-const GAUGE_ARC = "M20,100 A80,80 0 0 0 180,100";
+// Upper 180-degree semicircle only (0% = left, 50% = top, 100% = right).
+// Sweep flag 1 from the left end keeps the arc ABOVE the center line.
+// The green/red split is drawn with stroke-dasharray (pathLength="100") on one
+// full path; the dash starts at the 0% (left) end.
+const GAUGE_ARC = "M40,150 A110,110 0 0 1 260,150";
 
 const gaugePoint = (v, r) => {
   const th = ((180 - v * 1.8) * Math.PI) / 180;
@@ -127,17 +127,17 @@ const GAUGE_MAJOR = [0, 25, 50, 75, 100];
 
 const gaugeTicksHtml = () => {
   const minor = GAUGE_MINOR.map((v) => {
-    const [x1, y1] = gaugePoint(v, 74);
-    const [x2, y2] = gaugePoint(v, 80);
+    const [x1, y1] = gaugePoint(v, 102);
+    const [x2, y2] = gaugePoint(v, 110);
     return `<line class="tick is-minor" x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}"/>`;
   }).join("");
   const major = GAUGE_MAJOR.map((v) => {
-    const [x1, y1] = gaugePoint(v, 66);
-    const [x2, y2] = gaugePoint(v, 80);
+    const [x1, y1] = gaugePoint(v, 91);
+    const [x2, y2] = gaugePoint(v, 110);
     return `<line class="tick is-major" x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}"/>`;
   }).join("");
   const labels = GAUGE_MAJOR.map((v) => {
-    const [x, y] = gaugePoint(v, 57);
+    const [x, y] = gaugePoint(v, 78);
     return `<text class="tick-label" x="${x.toFixed(2)}" y="${(y + 3).toFixed(2)}">${v}</text>`;
   }).join("");
   return minor + major + labels;
@@ -153,15 +153,15 @@ const gaugeClamp = (v) => {
 function gaugeSvgHtml(svc, range, pct, value) {
   const frac = gaugeClamp(pct);
   return `
-    <svg class="gauge" viewBox="0 0 200 118" role="img" aria-label="${esc(svc.name)} ${esc(range)} uptime ${esc(value)}">
+    <svg class="gauge" viewBox="0 0 300 180" role="img" aria-label="${esc(svc.name)} ${esc(range)} uptime ${esc(value)}">
       <path class="gauge-track" d="${GAUGE_ARC}"/>
       <path class="gauge-arc gauge-arc-red" d="${GAUGE_ARC}" pathLength="100" stroke-dasharray="100 100"/>
       <path class="gauge-arc gauge-arc-green" d="${GAUGE_ARC}" pathLength="100" stroke-dasharray="${frac} 100"/>
       <g class="gauge-ticks">${gaugeTicksHtml()}</g>
       <g class="gauge-needle">
-        <line class="g-needle" x1="100" y1="100" x2="100" y2="24" style="transform:rotate(${gaugeNeedleDeg(pct)}deg)"/>
+        <line class="g-needle" x1="150" y1="150" x2="150" y2="74" style="transform:rotate(${gaugeNeedleDeg(pct)}deg)"/>
       </g>
-      <circle class="gauge-hub" cx="100" cy="100" r="5"/>
+      <circle class="gauge-hub" cx="150" cy="150" r="5"/>
     </svg>`;
 }
 
