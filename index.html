@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KEYDIR System Status</title>
+  <meta name="description" content="Live status page for KEYDIR services: website, app, product directory, search, price tracking, API and scraper.">
+  <meta name="theme-color" content="#FFFCF0">
+  <meta property="og:title" content="KEYDIR System Status">
+  <meta property="og:description" content="Current status and uptime for all KEYDIR services.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="KEYDIR">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⌨</text></svg>">
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="assets/js/theme.js"></script>
+</head>
+<body>
+  <div class="page">
+
+    <nav class="navbar" aria-label="Primary">
+      <div class="navbar-inner">
+        <a class="nav-logo" href="https://keydir.in">⌨ KEYDIR.in</a>
+        <span class="live-badge" id="live-badge" hidden>LIVE</span>
+      </div>
+    </nav>
+
+    <main id="main" aria-live="polite">
+      <div class="live-note" id="live-note" role="status" hidden></div>
+
+      <section class="card overall" id="overall"></section>
+
+      <section class="section" id="services" aria-labelledby="services-title">
+        <div class="section-head">
+          <h2 id="services-title">Services</h2>
+          <span class="sec-tag" id="services-count"></span>
+        </div>
+        <div class="service-list" id="services-list"></div>
+      </section>
+
+      <section class="section" id="uptime" aria-labelledby="uptime-title">
+        <div class="section-head">
+          <h2 id="uptime-title">Uptime</h2>
+          <span class="sec-tag">24h / 7d / 30d / 90d</span>
+        </div>
+        <div class="uptime-legend">
+          <span class="uptime-legend-item"><span class="uptime-legend-swatch is-fill"></span>Up</span>
+          <span class="uptime-legend-item"><span class="uptime-legend-swatch is-fill-bad"></span>Down</span>
+          <span class="uptime-legend-item"><span class="uptime-legend-swatch is-paused"></span>Paused</span>
+          <span class="uptime-legend-item"><span class="uptime-legend-swatch is-empty"></span>No data</span>
+        </div>
+        <div id="uptime-list"></div>
+      </section>
+
+      <section class="section" id="incidents" aria-labelledby="incidents-title">
+        <div class="section-head">
+          <h2 id="incidents-title">Incident History</h2>
+          <span class="sec-tag" id="incidents-count"></span>
+        </div>
+        <div id="incidents-list"></div>
+      </section>
+
+      <section class="section" id="maintenance" aria-labelledby="maintenance-title">
+        <div class="section-head">
+          <h2 id="maintenance-title">Scheduled Maintenance</h2>
+        </div>
+        <div id="maintenance-list"></div>
+      </section>
+    </main>
+
+  </div>
+
+  <footer>
+    <div class="footer-inner">
+        <div>
+          <div class="f-logo">⌨ KEYDIR.in</div>
+          <div class="f-desc">
+            System status and uptime information for KEYDIR services.
+            Live monitoring, service health, and incident updates.
+          </div>
+        </div>
+
+        <div class="f-col">
+          <h4>KEYDIR.IN</h4>
+          <ul>
+            <li><a href="https://keydir.in/" target="_self">_Home</a></li>
+            <li><a href="https://keydir.in/vendors/" target="_self">_Vendors</a></li>
+            <li><a href="https://keydir.in/builders/" target="_self">_Builders</a></li>
+            <li><a href="https://keydir.in/brands/" target="_self">_Brands</a></li>
+            <li><a href="https://keydir.in/surfaces/" target="_self">_Surfaces</a></li>
+            <li><a href="https://keydir.in/group-buy/" target="_self">_Group Buys</a></li>
+            <li><a href="https://keydir.in/guide/" target="_self">_Guide</a></li>
+          </ul>
+        </div>
+
+        <div class="f-col">
+          <h4>APP.KEYDIR.IN</h4>
+          <ul>
+            <li><a href="https://app.keydir.in/" target="_self">_HOME</a></li>
+            <li><a href="https://app.keydir.in/keyboards" target="_self">_Keyboards</a></li>
+            <li><a href="https://app.keydir.in/switches" target="_self">_Switches</a></li>
+            <li><a href="https://app.keydir.in/keycaps" target="_self">_Keycaps</a></li>
+            <li><a href="https://app.keydir.in/mouse" target="_self">_Mouse</a></li>
+          </ul>
+        </div>
+
+        <div class="f-col">
+          <h4>DOCUMENTATION</h4>
+          <ul>
+            <li><a href="https://keydir.in/contact/" target="_self">_Contact</a></li>
+            <li><a href="https://keydir.in/app/terms" target="_self">_Terms</a></li>
+            <li><a href="https://keydir.in/app/privacy" target="_self">_Privacy Policy</a></li>
+            <li><a href="https://keydir.in/app/cookies" target="_self">_Cookies</a></li>
+            <li><a href="https://keydir.in/app/security" target="_self">_Security</a></li>
+            <li><a href="https://keydir.in/app/dmca" target="_self">_DMCA</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="f-bottom">
+        <div class="f-copy">
+          © 2026 KEYDIR.in
+        </div>
+        <button class="theme-toggle" type="button" aria-label="Toggle light/dark theme">
+          <span class="tt-icon">◑</span>
+          <span class="tt-label">DARK MODE</span>
+        </button>
+      </div>
+
+      <div class="f-watermark">KEYDIR</div>
+    </footer>
+
+  <noscript>
+    <p class="noscript">JavaScript is required to load status data. Please enable it to view this page.</p>
+  </noscript>
+
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
